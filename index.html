@@ -91,7 +91,7 @@
         <div onclick="switchTab('PL')" class="cursor-pointer bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:border-indigo-300 transition">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">Planned Leave (PL)</span>
-            <span id="dash-pl-exp-badge" class="text-[11px] font-semibold text-slate-500">1-yr expiry</span>
+            <span class="text-[11px] font-semibold text-indigo-600">1/mo • 1-yr expiry</span>
           </div>
           <div class="mt-2.5 flex items-baseline justify-between">
             <div>
@@ -103,7 +103,7 @@
           <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mt-2.5">
             <div id="dash-pl-bar" class="h-full bg-indigo-600 rounded-full transition-all" style="width: 100%"></div>
           </div>
-          <p id="dash-pl-note" class="text-[11px] text-slate-500 mt-2">File at least 14 days before leave date</p>
+          <p id="dash-pl-note" class="text-[11px] text-slate-500 mt-2">Each monthly PL expires 1 year after credit • File 14d ahead</p>
         </div>
 
         <!-- UL Card (No Expiration, Cash Convertible) -->
@@ -150,7 +150,7 @@
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-sm font-extrabold text-slate-900">Expiring Credits & Filing Reminders</h2>
-            <p class="text-[11px] text-slate-500">Only PL (1 yr) & BL (+1 day after birthday) expire — UL never expires</p>
+            <p class="text-[11px] text-slate-500">PL expires 1 yr per monthly credit & BL expires +1 day after birthday — UL never expires</p>
           </div>
         </div>
         <div id="dash-alerts-list" class="space-y-2"></div>
@@ -176,15 +176,32 @@
     <div id="view-PL" class="hidden space-y-4 animate-fade">
       <div class="bg-indigo-600 text-white rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Planned Leave (PL) Balance</span>
-          <div class="text-2xl font-extrabold mt-0.5"><span id="tab-pl-left">12</span> of <span id="tab-pl-total">12</span> Remaining</div>
-          <p id="tab-pl-expiry-info" class="text-xs text-indigo-100 mt-1">Credited Jan 1, 2026 • Expires Jan 1, 2027 • File 14 days ahead</p>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Planned Leave (PL) • 1 Credited Every Month</span>
+          <div class="text-2xl font-extrabold mt-0.5"><span id="tab-pl-left">12</span> of <span id="tab-pl-total">12</span> Available</div>
+          <p id="tab-pl-expiry-info" class="text-xs text-indigo-100 mt-1">Each monthly PL expires 1 year after credit • File at least 14 days ahead</p>
         </div>
         <button onclick="openLeaveModal('PL')" class="px-4 py-2.5 bg-white text-indigo-700 text-xs font-extrabold rounded-xl shadow-xs hover:bg-indigo-50 transition self-start sm:self-center">
           + Log Planned Leave
         </button>
       </div>
-      <div id="list-PL" class="space-y-2.5"></div>
+
+      <!-- Monthly PL Credit & Expiration Schedule -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-extrabold text-slate-900">Monthly PL Credits & Individual Expirations</h3>
+          <select id="plScheduleYear" onchange="renderTypeTabs()" class="px-2.5 py-1 text-xs font-bold bg-slate-100 rounded-lg focus:outline-none">
+            <option value="2026" selected>2026 Credits</option>
+            <option value="2027">2027 Credits</option>
+          </select>
+        </div>
+        <div id="pl-monthly-schedule" class="divide-y divide-slate-100"></div>
+      </div>
+
+      <!-- Logged PL History -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Logged PL Entries</h3>
+        <div id="list-PL" class="space-y-2.5"></div>
+      </div>
     </div>
 
     <!-- ==================== 3. UL TAB VIEW ==================== -->
@@ -344,14 +361,14 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Total PL Credits</label>
-            <input type="number" step="0.5" id="setPlTotal" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl" />
+            <input type="number" step="1" id="setPlTotal" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl" />
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">PL Credited Date</label>
-            <input type="date" id="setPlCredited" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl" />
+            <label class="block text-xs font-bold text-slate-700 mb-1">PL Monthly Credit Day</label>
+            <input type="number" min="1" max="28" id="setPlCreditDay" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl" />
           </div>
         </div>
-        <p class="text-[11px] text-slate-500 -mt-2">PL automatically expires 1 year after its credited date.</p>
+        <p class="text-[11px] text-slate-500 -mt-2">1 PL is credited each month (e.g., Jan 1 expires Jan 1 next year, Feb 1 expires Feb 1 next year).</p>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -383,7 +400,7 @@
   <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg"></div>
 
   <script>
-    const STORAGE_KEY = 'leavepulse_data_v1';
+    const STORAGE_KEY = 'leavepulse_data_v2';
 
     const HOLIDAYS = [
       // 2026 Philippine Holidays
@@ -458,6 +475,10 @@
       return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
+    const formatMonthLabel = (year, monthIdx) => {
+      return new Date(year, monthIdx, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    };
+
     function loadState() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -466,7 +487,7 @@
       return {
         settings: {
           plTotal: 12,
-          plCreditedDate: '2026-01-01',
+          plCreditDay: 1,
           ulTotal: 12,
           ulDailyRate: 0,
           birthdayDate: ''
@@ -505,6 +526,26 @@
       return addDays(leave.date, -lead);
     }
 
+    // Build 12 monthly PL credit batches for a given year (e.g., Jan 1 2026 -> exp Jan 1 2027, Feb 1 2026 -> exp Feb 1 2027...)
+    function getMonthlyPlBatches(year) {
+      const day = Math.min(28, Math.max(1, Number(state.settings.plCreditDay || 1)));
+      const batches = [];
+      for (let m = 0; m < 12; m++) {
+        const creditedDate = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const expiresDate = addYears(creditedDate, 1);
+        const daysToExpire = diffDays(todayStr(), expiresDate);
+        batches.push({
+          monthIndex: m,
+          monthName: formatMonthLabel(year, m),
+          creditedDate,
+          expiresDate,
+          daysToExpire,
+          isExpired: daysToExpire < 0
+        });
+      }
+      return batches;
+    }
+
     function getMetrics() {
       const plUsed = state.leaves.filter(l => l.type === 'PL').reduce((s, l) => s + Number(l.days || 1), 0);
       const ulUsed = state.leaves.filter(l => l.type === 'UL').reduce((s, l) => s + Number(l.days || 1), 0);
@@ -516,8 +557,17 @@
       const ulLeft = Math.max(0, ulTotal - ulUsed);
       const blLeft = blUsed >= 1 ? 0 : 1;
 
-      const plExpiryDate = addYears(state.settings.plCreditedDate || '2026-01-01', 1);
-      const plDaysToExpiry = diffDays(todayStr(), plExpiryDate);
+      // Find the active/unexpired monthly PL batches that are expiring soonest
+      const activeYear = new Date().getFullYear();
+      const allCandidateBatches = [
+        ...getMonthlyPlBatches(activeYear - 1),
+        ...getMonthlyPlBatches(activeYear),
+        ...getMonthlyPlBatches(activeYear + 1)
+      ]
+        .filter(b => b.daysToExpire >= 0)
+        .sort((a, b) => a.daysToExpire - b.daysToExpire);
+
+      const remainingBatches = allCandidateBatches.slice(0, plLeft);
 
       let blExpiryDate = '';
       let blDaysToExpiry = null;
@@ -530,7 +580,7 @@
       }
 
       return {
-        plTotal, plUsed, plLeft, plExpiryDate, plDaysToExpiry,
+        plTotal, plUsed, plLeft, remainingBatches,
         ulTotal, ulUsed, ulLeft,
         blUsed, blLeft, blExpiryDate, blDaysToExpiry
       };
@@ -561,10 +611,10 @@
       document.getElementById('dash-pl-total').textContent = m.plTotal;
       document.getElementById('dash-pl-used').textContent = `${m.plUsed} used`;
       document.getElementById('dash-pl-bar').style.width = `${m.plTotal ? (m.plLeft / m.plTotal) * 100 : 0}%`;
-      document.getElementById('dash-pl-exp-badge').textContent = `Exp: ${formatDate(m.plExpiryDate)}`;
-      document.getElementById('dash-pl-note').textContent = m.plDaysToExpiry >= 0
-        ? `${m.plDaysToExpiry} days left before unused PL expires`
-        : `Expired on ${formatDate(m.plExpiryDate)}`;
+      const soonestPl = m.remainingBatches[0];
+      document.getElementById('dash-pl-note').textContent = soonestPl
+        ? `Next PL (${soonestPl.monthName}) expires ${formatDate(soonestPl.expiresDate)} (${soonestPl.daysToExpire}d left)`
+        : 'All PL credits used or expired';
 
       // UL Card
       document.getElementById('dash-ul-left').textContent = m.ulLeft;
@@ -598,18 +648,20 @@
 
       // Expiring Credits & Filing Reminders
       const alerts = [];
-      if (m.plLeft > 0) {
-        const urgent = m.plDaysToExpiry <= 60;
+
+      // Show top 2 soonest-expiring PL monthly credits so user can use them before expiry
+      m.remainingBatches.slice(0, 2).forEach(b => {
+        const urgent = b.daysToExpire <= 60;
         alerts.push(`
           <div class="p-3 rounded-xl border ${urgent ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'} flex items-center justify-between gap-2">
             <div>
-              <p class="text-xs font-bold text-slate-900">${m.plLeft} Planned Leave (PL) credit${m.plLeft > 1 ? 's' : ''} remaining</p>
-              <p class="text-[11px] text-slate-600">Expires on <strong>${formatDate(m.plExpiryDate)}</strong> (${m.plDaysToExpiry} days left) — file 14 days ahead</p>
+              <p class="text-xs font-bold text-slate-900">1 PL Credit (${b.monthName} batch) — Expires ${formatDate(b.expiresDate)}</p>
+              <p class="text-[11px] text-slate-600"><strong>${b.daysToExpire} days left</strong> before expiration • File at least 14 days ahead</p>
             </div>
-            <button onclick="openLeaveModal('PL')" class="px-2.5 py-1.5 text-[11px] font-bold bg-indigo-600 text-white rounded-lg shrink-0">Use PL</button>
+            <button onclick="openLeaveModal('PL', 'Use ${b.monthName} PL before ${formatDate(b.expiresDate)}')" class="px-2.5 py-1.5 text-[11px] font-bold bg-indigo-600 text-white rounded-lg shrink-0">Use PL</button>
           </div>
         `);
-      }
+      });
 
       if (m.blLeft > 0) {
         alerts.push(`
@@ -677,10 +729,36 @@
     function renderTypeTabs() {
       const m = getMetrics();
 
-      // PL Tab Header
+      // PL Tab Header & Monthly Schedule
       document.getElementById('tab-pl-left').textContent = m.plLeft;
       document.getElementById('tab-pl-total').textContent = m.plTotal;
-      document.getElementById('tab-pl-expiry-info').textContent = `Credited ${formatDate(state.settings.plCreditedDate)} • Expires ${formatDate(m.plExpiryDate)} (${m.plDaysToExpiry}d left) • File 14 days ahead`;
+
+      const schedYr = Number(document.getElementById('plScheduleYear').value || 2026);
+      const batches = getMonthlyPlBatches(schedYr);
+      const remainingSet = new Set(m.remainingBatches.map(b => b.creditedDate));
+
+      document.getElementById('pl-monthly-schedule').innerHTML = batches.map(b => {
+        const isAvailable = remainingSet.has(b.creditedDate);
+        const expLabel = b.daysToExpire < 0
+          ? `<span class="text-rose-600 font-bold">Expired ${formatDate(b.expiresDate)}</span>`
+          : `<span class="text-slate-700 font-semibold">Expires ${formatDate(b.expiresDate)}</span> <span class="text-slate-400">(${b.daysToExpire}d)</span>`;
+
+        return `
+          <div class="py-2 flex items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-16 font-extrabold text-slate-900">${b.monthName.split(' ')[0]}</span>
+              <span class="text-[11px] text-slate-400">Credited ${formatDate(b.creditedDate)}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px]">${expLabel}</span>
+              ${isAvailable
+                ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-50 text-indigo-700">1 Available</span>`
+                : `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-slate-100 text-slate-400">Used / Past</span>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
 
       // UL Tab Header
       document.getElementById('tab-ul-left').textContent = m.ulLeft;
@@ -709,7 +787,7 @@
 
         if (!items.length) {
           container.innerHTML = `
-            <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-8 text-center">
+            <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-6 text-center">
               <p class="text-sm font-bold text-slate-700">No ${type} records logged yet</p>
               <p class="text-xs text-slate-400 mt-1">Tap the button above whenever you plan or use a ${type}.</p>
             </div>`;
@@ -849,21 +927,21 @@
       box.innerHTML = html || `<p class="text-xs text-slate-400 py-2 text-center">No leaves or holidays on this date.</p>`;
     }
 
-    function openLeaveModal(defaultType = 'PL') {
+    function openLeaveModal(defaultType = 'PL', presetNotes = '') {
       document.getElementById('leaveForm').reset();
       document.getElementById('leaveId').value = '';
       document.getElementById('leaveModalTitle').textContent = 'Log Leave';
       document.getElementById('leaveType').value = defaultType;
       document.getElementById('leaveDays').value = 1;
-      document.getElementById('leaveDate').value = todayStr();
+      document.getElementById('leaveDate').value = addDays(todayStr(), defaultType === 'PL' ? 14 : 0);
+      document.getElementById('leaveNotes').value = presetNotes;
       updateModalFilingHint();
       document.getElementById('leaveModal').classList.remove('hidden');
     }
 
     function openHolidayLeave(dateStr, holidayName) {
-      openLeaveModal('HL');
+      openLeaveModal('HL', `Holiday Leave — ${holidayName}`);
       document.getElementById('leaveDate').value = dateStr;
-      document.getElementById('leaveNotes').value = `Holiday Leave — ${holidayName}`;
       updateModalFilingHint();
     }
 
@@ -890,7 +968,7 @@
       const date = document.getElementById('leaveDate').value || todayStr();
       const hint = document.getElementById('modalFilingHint');
       if (type === 'PL') {
-        hint.textContent = `PL Rule: File at least 14 days before — deadline is ${formatDate(addDays(date, -14))}.`;
+        hint.textContent = `PL Rule: File at least 14 days before — deadline is ${formatDate(addDays(date, -14))}. Each monthly PL expires 1 year after credit.`;
       } else if (type === 'UL') {
         hint.textContent = `UL Rule: File 1 day before (${formatDate(addDays(date, -1))}). Unused UL never expires and is convertible to cash.`;
       } else if (type === 'HL') {
@@ -938,7 +1016,7 @@
 
     function openSettingsModal() {
       document.getElementById('setPlTotal').value = state.settings.plTotal;
-      document.getElementById('setPlCredited').value = state.settings.plCreditedDate;
+      document.getElementById('setPlCreditDay').value = state.settings.plCreditDay || 1;
       document.getElementById('setUlTotal').value = state.settings.ulTotal;
       document.getElementById('setUlRate').value = state.settings.ulDailyRate || '';
       document.getElementById('setBirthday').value = state.settings.birthdayDate || '';
@@ -953,7 +1031,7 @@
       e.preventDefault();
       state.settings = {
         plTotal: Number(document.getElementById('setPlTotal').value || 12),
-        plCreditedDate: document.getElementById('setPlCredited').value,
+        plCreditDay: Math.min(28, Math.max(1, Number(document.getElementById('setPlCreditDay').value || 1))),
         ulTotal: Number(document.getElementById('setUlTotal').value || 12),
         ulDailyRate: Number(document.getElementById('setUlRate').value || 0),
         birthdayDate: document.getElementById('setBirthday').value
