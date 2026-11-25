@@ -1417,4 +1417,301 @@
           ...(dayOff ? [`<span class="w-2 h-2 rounded-full bg-teal-700"></span>`] : [])
         ].join('');
 
-        
+        cells += `
+          <button onclick="selectCalendarDay('${dStr}')" class="h-14 sm:h-16 p-1.5 rounded-xl border text-left flex flex-col justify-between transition ${
+            isSelected ? 'border-slate-900 bg-slate-100/80' :
+            isToday ? 'border-emerald-400 bg-white' : 'border-slate-100 bg-white hover:border-slate-300'
+          }">
+            <span class="text-xs font-bold ${isToday ? 'w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[11px]' : 'text-slate-700'}">${d}</span>
+            <div class="flex flex-wrap gap-0.5">${dots}</div>
+          </button>
+        `;
+      }
+
+      grid.innerHTML = cells;
+      renderSelectedDateDetails();
+    }
+
+    function selectCalendarDay(dStr) {
+      selectedCalendarDate = dStr;
+      renderCalendar();
+    }
+
+    function changeMonth(delta) {
+      calendarDate.setMonth(calendarDate.getMonth() + delta);
+      renderCalendar();
+    }
+
+    function goToToday() {
+      calendarDate = new Date();
+      selectedCalendarDate = todayStr();
+      renderCalendar();
+    }
+
+    function renderSelectedDateDetails() {
+      document.getElementById('selectedDateHeading').textContent = `Schedule for ${formatDate(selectedCalendarDate)}`;
+      const box = document.getElementById('selectedDateDetails');
+      const dayLeaves = state.leaves.filter(l => l.date === selectedCalendarDate);
+      const dayHoliday = HOLIDAYS.find(h => h.date === selectedCalendarDate);
+      const dayOff = isDayOffDate(selectedCalendarDate);
+
+      let html = '';
+      if (dayOff) {
+        html += `
+          <div class="p-3 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] font-extrabold uppercase text-teal-800">Scheduled Day Off</span>
+              <p class="text-xs font-bold text-slate-900">No leave filing needed on your rest day</p>
+            </div>
+            <button onclick="toggleSingleDayOff('${selectedCalendarDate}')" class="px-2.5 py-1 text-[11px] font-bold bg-white border border-teal-200 text-teal-800 rounded-lg">Remove Off</button>
+          </div>
+        `;
+      }
+
+      if (dayHoliday) {
+        html += `
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] font-extrabold uppercase text-rose-600">${dayHoliday.type} Holiday</span>
+              <p class="text-xs font-bold text-slate-900">${dayHoliday.name}</p>
+              <p class="text-[11px] text-slate-500">File HL 24–72h ahead (${formatDate(addDays(dayHoliday.date, -3))} – ${formatDate(addDays(dayHoliday.date, -1))})</p>
+            </div>
+            <button onclick="openHolidayLeave('${dayHoliday.date}', '${dayHoliday.name.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 text-[11px] font-bold bg-rose-600 text-white rounded-lg">+ File HL</button>
+          </div>
+        `;
+      }
+
+      dayLeaves.forEach(l => {
+        html += `
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-extrabold text-slate-900">${l.type} (${l.days} day${Number(l.days) > 1 ? 's' : ''}) ${l.plBatch ? `• ${formatMonthFromKey(l.plBatch)}` : ''}</span>
+              ${l.notes ? `<p class="text-[11px] text-slate-600">${escapeHtml(l.notes)}</p>` : ''}
+            </div>
+            <button onclick="editLeave('${l.id}')" class="px-2.5 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg">Edit</button>
+          </div>
+        `;
+      });
+
+      box.innerHTML = html || `<p class="text-xs text-slate-400 py-2 text-center">No leaves, days off, or holidays on this date.</p>`;
+    }
+
+    function populatePlBatchOptions(selectedBatch = '') {
+      const m = getMetrics();
+      const select = document.getElementById('plCreditBatch');
+      const options = m.allBatches.map(b => {
+        const status = b.ymKey === selectedBatch
+          ? '(Selected)'
+          : b.isUsed
+            ? '— Used'
+            : b.isExpired
+              ? '— Expired'
+              : `— Exp: ${formatDate(b.expiresDate)}`;
+        return `<option value="${b.ymKey}" ${b.ymKey === selectedBatch ? 'selected' : ''}>${b.monthName} PL ${status}</option>`;
+      });
+      select.innerHTML = options.join('');
+
+      if (!selectedBatch) {
+        const firstAvail = m.allBatches.find(b => !b.isUsed && !b.isExpired);
+        if (firstAvail) select.value = firstAvail.ymKey;
+      }
+    }
+
+    function onLeaveTypeChange(selectedBatch = '') {
+      const type = document.getElementById('leaveType').value;
+      const plWrap = document.getElementById('plBatchPickerWrap');
+      const ulWrap = document.getElementById('ulTimeWrap');
+
+      if (type === 'PL') {
+        plWrap.classList.remove('hidden');
+        populatePlBatchOptions(selectedBatch);
+      } else {
+        plWrap.classList.add('hidden');
+      }
+
+      if (type === 'UL') {
+        ulWrap.classList.remove('hidden');
+      } else {
+        ulWrap.classList.add('hidden');
+      }
+
+      updateModalFilingHint();
+    }
+
+    function openLeaveModal(defaultType = 'PL', presetNotes = '', presetBatch = '') {
+      document.getElementById('leaveForm').reset();
+      document.getElementById('leaveId').value = '';
+      document.getElementById('leaveModalTitle').textContent = 'Log Leave';
+      document.getElementById('leaveType').value = defaultType;
+      document.getElementById('leaveDays').value = 1;
+      const lead = (defaultType === 'PL' || defaultType === 'BL') ? 14 : 0;
+      document.getElementById('leaveDate').value = addDays(todayStr(), lead);
+      document.getElementById('leaveNotes').value = presetNotes;
+      onLeaveTypeChange(presetBatch);
+      document.getElementById('leaveModal').classList.remove('hidden');
+    }
+
+    function openHolidayLeave(dateStr, holidayName) {
+      openLeaveModal('HL', `Holiday Leave — ${holidayName}`);
+      document.getElementById('leaveDate').value = dateStr;
+      updateModalFilingHint();
+    }
+
+    function editLeave(id) {
+      const l = state.leaves.find(x => x.id === id);
+      if (!l) return;
+      document.getElementById('leaveId').value = l.id;
+      document.getElementById('leaveModalTitle').textContent = 'Edit Leave';
+      document.getElementById('leaveType').value = l.type;
+      document.getElementById('leaveDays').value = l.days;
+      document.getElementById('leaveDate').value = l.date;
+      document.getElementById('filingStatus').value = l.filingStatus;
+      document.getElementById('leaveNotes').value = l.notes || '';
+      if (l.shiftTime) document.getElementById('ulShiftTime').value = l.shiftTime;
+      onLeaveTypeChange(l.plBatch || '');
+      document.getElementById('leaveModal').classList.remove('hidden');
+    }
+
+    function closeLeaveModal() {
+      document.getElementById('leaveModal').classList.add('hidden');
+    }
+
+    function updateModalFilingHint() {
+      const type = document.getElementById('leaveType').value;
+      const date = document.getElementById('leaveDate').value || todayStr();
+      const shiftTime = document.getElementById('ulShiftTime').value;
+      const hint = document.getElementById('modalFilingHint');
+      const offNote = isDayOffDate(date) ? ' (Note: This date is marked as your Day Off.)' : '';
+
+      if (type === 'PL') {
+        hint.textContent = `PL Rule: File at least 14 days (2 weeks) before — file by ${formatDate(addDays(date, -14))}.${offNote}`;
+      } else if (type === 'UL') {
+        hint.textContent = `UL Rule: File at least 2 hours before shift (by ${minusTwoHours(shiftTime)} on ${formatDate(date)}). Never expires & cash convertible.${offNote}`;
+      } else if (type === 'HL') {
+        hint.textContent = `HL Rule: File between 24 to 72 hours before holiday (${formatDate(addDays(date, -3))} to ${formatDate(addDays(date, -1))}).${offNote}`;
+      } else {
+        const m = getMetrics();
+        const winText = state.settings.birthdayDate
+          ? `Valid window: ${formatDate(m.blWindowStart)} to ${formatDate(m.blWindowEnd)} (±15d of bday). `
+          : 'Valid 15 days before to 15 days after birthday. ';
+        hint.textContent = `BL Rule: ${winText}File at least 2 weeks (14 days) ahead — file by ${formatDate(addDays(date, -14))}.${offNote}`;
+      }
+    }
+
+    function saveLeave(e) {
+      e.preventDefault();
+      const id = document.getElementById('leaveId').value;
+      const type = document.getElementById('leaveType').value;
+      const payload = {
+        id: id || 'lv-' + Date.now(),
+        type,
+        plBatch: type === 'PL' ? document.getElementById('plCreditBatch').value : '',
+        days: Number(document.getElementById('leaveDays').value || 1),
+        date: document.getElementById('leaveDate').value,
+        shiftTime: type === 'UL' ? document.getElementById('ulShiftTime').value : '',
+        filingStatus: document.getElementById('filingStatus').value,
+        notes: document.getElementById('leaveNotes').value.trim()
+      };
+
+      if (id) {
+        state.leaves = state.leaves.map(l => l.id === id ? payload : l);
+        showToast('Leave updated');
+      } else {
+        state.leaves.unshift(payload);
+        showToast('Leave logged');
+      }
+      closeLeaveModal();
+      persist();
+    }
+
+    function markFiled(id) {
+      state.leaves = state.leaves.map(l => l.id === id ? { ...l, filingStatus: 'filed' } : l);
+      showToast('Marked as Filed');
+      persist();
+    }
+
+    function deleteLeave(id) {
+      if (!confirm('Delete this leave record?')) return;
+      state.leaves = state.leaves.filter(l => l.id !== id);
+      showToast('Leave deleted');
+      persist();
+    }
+
+    function openSettingsModal() {
+      document.getElementById('setPlTotal').value = state.settings.plTotal;
+      document.getElementById('setPlCreditDay').value = state.settings.plCreditDay || 1;
+      document.getElementById('setUlTotal').value = state.settings.ulTotal;
+      document.getElementById('setUlRate').value = state.settings.ulDailyRate || '';
+      document.getElementById('setBirthday').value = state.settings.birthdayDate || '';
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function saveSettings(e) {
+      e.preventDefault();
+      state.settings = {
+        plTotal: Number(document.getElementById('setPlTotal').value || 12),
+        plCreditDay: Math.min(28, Math.max(1, Number(document.getElementById('setPlCreditDay').value || 1))),
+        ulTotal: Number(document.getElementById('setUlTotal').value || 12),
+        ulDailyRate: Number(document.getElementById('setUlRate').value || 0),
+        birthdayDate: document.getElementById('setBirthday').value
+      };
+      closeSettingsModal();
+      showToast('Settings saved');
+      persist();
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leavepulse-backup-${todayStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup downloaded');
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          if (parsed && parsed.settings && Array.isArray(parsed.leaves)) {
+            state = {
+              settings: parsed.settings,
+              leaves: parsed.leaves,
+              daysOff: parsed.daysOff || {},
+              targetLeaves: Array.isArray(parsed.targetLeaves) ? parsed.targetLeaves : []
+            };
+            persist();
+            showToast('Backup restored');
+          }
+        } catch (err) {
+          alert('Invalid backup file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    function renderAll() {
+      renderDashboard();
+      renderTypeTabs();
+      if (currentTab === 'target') renderTargetLeavesTab();
+      if (currentTab === 'daysoff') renderDaysOffTab();
+      if (currentTab === 'calendar') renderCalendar();
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>
