@@ -85,6 +85,12 @@
       <button onclick="switchTab('HL')" id="nav-HL" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition">
         Holiday (HL)
       </button>
+      <button onclick="switchTab('target')" id="nav-target" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition">
+        Target Leaves
+      </button>
+      <button onclick="switchTab('daysoff')" id="nav-daysoff" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition">
+        Days Off
+      </button>
       <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-tab px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition">
         Calendar
       </button>
@@ -262,7 +268,112 @@
       <div id="list-HL" class="space-y-2.5"></div>
     </div>
 
-    <!-- ==================== 6. CALENDAR VIEW ==================== -->
+    <!-- ==================== 6. TARGET LEAVES VIEW ==================== -->
+    <div id="view-target" class="hidden space-y-4 animate-fade">
+      <div class="bg-slate-900 text-white rounded-2xl p-4 shadow-sm">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Future Leave Range Planner</span>
+        <h2 class="text-xl font-extrabold mt-0.5">Target Leaves Calculator</h2>
+        <p class="text-xs text-slate-300 mt-1">Enter a From and To date—automatically excludes your monthly Days Off so you don't waste leave credits on rest days.</p>
+      </div>
+
+      <form onsubmit="addTargetLeave(event)" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">From Date *</label>
+            <input type="date" id="targetFrom" onchange="previewTargetRange()" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">To Date *</label>
+            <input type="date" id="targetTo" onchange="previewTargetRange()" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Intended Leave Type</label>
+            <select id="targetType" onchange="previewTargetRange()" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-emerald-500">
+              <option value="PL">Planned Leave (PL)</option>
+              <option value="UL">Unplanned Leave (UL)</option>
+              <option value="BL">Birthday Leave (BL)</option>
+              <option value="HL">Holiday Leave (HL)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Label / Purpose</label>
+            <input type="text" id="targetLabel" placeholder="e.g., Family trip, Rest week" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500" />
+          </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+          <input type="checkbox" id="targetSkipHolidays" onchange="previewTargetRange()" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+          Also skip public holidays (count only working days that aren't your day off)
+        </label>
+
+        <!-- Live Preview Box -->
+        <div id="targetLivePreview" class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5"></div>
+
+        <button type="submit" class="w-full py-2.5 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition">
+          + Save to Target Leaves List
+        </button>
+      </form>
+
+      <!-- Saved Target Leave Plans -->
+      <div class="space-y-2.5">
+        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Saved Target Leave Plans</h3>
+        <div id="savedTargetList" class="space-y-2.5"></div>
+      </div>
+    </div>
+
+    <!-- ==================== 7. DAYS OFF TAB VIEW ==================== -->
+    <div id="view-daysoff" class="hidden space-y-4 animate-fade">
+      <div class="bg-teal-900 text-white rounded-2xl p-4 shadow-sm">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-amber-300">Shift Rest Days Planner</span>
+        <h2 class="text-xl font-extrabold mt-0.5">Monthly Days Off</h2>
+        <p class="text-xs text-teal-100 mt-1">Set your days off per month when your shift changes. Tap a weekday chip to toggle that day across the month, or tap any date on the mini calendar.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-400 uppercase">Select Month</label>
+            <input type="month" id="daysOffMonthInput" onchange="renderDaysOffTab()" class="mt-0.5 px-3 py-1.5 text-sm font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-teal-600" />
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="applySatSunPreset()" class="px-2.5 py-1.5 text-xs font-bold bg-teal-50 text-teal-800 hover:bg-teal-100 rounded-lg transition">
+              Sat & Sun
+            </button>
+            <button type="button" onclick="clearMonthDaysOff()" class="px-2.5 py-1.5 text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition">
+              Clear Month
+            </button>
+          </div>
+        </div>
+
+        <!-- Weekday Quick Toggles (0=Sun .. 6=Sat) -->
+        <div>
+          <p class="text-[11px] font-bold text-slate-500 mb-1.5">Quick Toggle Weekday in Selected Month:</p>
+          <div class="grid grid-cols-7 gap-1.5">
+            <button type="button" onclick="toggleWeekdayInMonth(0)" class="py-2 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-teal-100 text-slate-700 transition">SUN</button>
+            <button type="button" onclick="toggleWeekdayInMonth(1)" class="py-2 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-teal-100 text-slate-700 transition">MON</button>
+            <button type="button" onclick="toggleWeekdayInMonth(2)" class="py-2 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-teal-100 text-slate-700 transition">TUE</button>
+            <button type="button" onclick="toggleWeekdayInMonth(3)" class="py-2 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-teal-100 text-slate-700 transition">WED</button>
+            <button type="button" onclick="toggleWeekdayInMonth(4)" class="py-2 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-teal-100 text-slate-700 transition">THU</button>
+            <button type="button" onclick="toggleWeekdayInMonth(5)" class="py-2 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-teal-100 text-slate-700 transition">FRI</button>
+            <button type="button" onclick="toggleWeekdayInMonth(6)" class="py-2 rounded-xl text-xs font-extrabold bg-slate-100 hover:bg-teal-100 text-slate-700 transition">SAT</button>
+          </div>
+        </div>
+
+        <!-- Month Dates Grid -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-bold text-slate-500">Tap any date to toggle Day Off:</span>
+            <span id="daysOffMonthCount" class="text-xs font-extrabold text-teal-800">0 days off set</span>
+          </div>
+          <div id="daysOffMonthGrid" class="grid grid-cols-7 gap-1.5"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 8. CALENDAR VIEW ==================== -->
     <div id="view-calendar" class="hidden space-y-4 animate-fade">
       <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
         <div class="flex items-center justify-between mb-4">
@@ -283,6 +394,7 @@
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>UL</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>BL</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>HL / Holiday</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-teal-700"></span>Day Off</span>
         </div>
 
         <div class="grid grid-cols-7 text-center text-[11px] font-bold text-slate-400 mb-1.5">
@@ -324,7 +436,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Days Used *</label>
-            <input type="number" step="0.5" min="0.5" max="15" id="leaveDays" value="1" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500" />
+            <input type="number" step="0.5" min="0.5" max="30" id="leaveDays" value="1" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500" />
           </div>
         </div>
 
@@ -426,7 +538,7 @@
   <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg"></div>
 
   <script>
-    const STORAGE_KEY = 'leavepulse_data_v3';
+    const STORAGE_KEY = 'leavepulse_data_v4';
 
     // Generate Custom Calendar-Clock App Icon for iOS Home Screen & Favicon
     (function generateAppIcon() {
@@ -442,7 +554,6 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 512, 512);
 
-        // Outer gold clock ring
         ctx.beginPath();
         ctx.arc(256, 232, 148, 0, Math.PI * 2);
         ctx.fillStyle = '#FEF9E7';
@@ -451,7 +562,6 @@
         ctx.strokeStyle = '#D4AF37';
         ctx.stroke();
 
-        // Clock hands
         ctx.beginPath();
         ctx.moveTo(256, 132);
         ctx.lineTo(256, 232);
@@ -462,7 +572,6 @@
         ctx.strokeStyle = '#0D4F4F';
         ctx.stroke();
 
-        // Calendar card overlapping bottom of clock
         ctx.fillStyle = '#FFFDF5';
         ctx.strokeStyle = '#0D4F4F';
         ctx.lineWidth = 10;
@@ -471,11 +580,9 @@
         ctx.fill();
         ctx.stroke();
 
-        // Calendar header bar
         ctx.fillStyle = '#D4AF37';
         ctx.fillRect(151, 253, 210, 34);
 
-        // Checkmarks
         ctx.strokeStyle = '#059669';
         ctx.lineWidth = 12;
         ctx.beginPath();
@@ -541,6 +648,8 @@
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
+    const currentYmStr = () => todayStr().slice(0, 7);
+
     const addDays = (dateStr, days) => {
       const [y, m, d] = dateStr.split('-').map(Number);
       const dt = new Date(y, m - 1, d);
@@ -566,6 +675,11 @@
       return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
+    const formatShortDay = (dateStr) => {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    };
+
     const formatMonthLabel = (year, monthIdx) => {
       return new Date(year, monthIdx, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     };
@@ -588,9 +702,17 @@
     };
 
     function loadState() {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('leavepulse_data_v2');
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('leavepulse_data_v3');
       if (raw) {
-        try { return JSON.parse(raw); } catch (e) {}
+        try {
+          const parsed = JSON.parse(raw);
+          return {
+            settings: parsed.settings || { plTotal: 12, plCreditDay: 1, ulTotal: 12, ulDailyRate: 0, birthdayDate: '' },
+            leaves: Array.isArray(parsed.leaves) ? parsed.leaves : [],
+            daysOff: parsed.daysOff || {}, // { "2026-01": ["2026-01-03", ...] }
+            targetLeaves: Array.isArray(parsed.targetLeaves) ? parsed.targetLeaves : []
+          };
+        } catch (e) {}
       }
       return {
         settings: {
@@ -600,7 +722,9 @@
           ulDailyRate: 0,
           birthdayDate: ''
         },
-        leaves: []
+        leaves: [],
+        daysOff: {},
+        targetLeaves: []
       };
     }
 
@@ -622,7 +746,55 @@
       window._toastTimer = setTimeout(() => t.classList.add('hidden'), 2200);
     }
 
-    // Build all monthly PL credit batches across 2026-2027 and mark which specific month keys are used
+    function isDayOffDate(dateStr) {
+      const ym = dateStr.slice(0, 7);
+      const list = state.daysOff[ym] || [];
+      return list.includes(dateStr);
+    }
+
+    function analyzeDateRange(fromStr, toStr, skipHolidays = false) {
+      if (!fromStr || !toStr || toStr < fromStr) {
+        return { valid: false, totalDays: 0, dayOffCount: 0, holidayCount: 0, leaveDaysNeeded: 0, days: [] };
+      }
+      const span = diffDays(fromStr, toStr) + 1;
+      if (span > 180) {
+        return { valid: false, error: 'Range exceeds 180 days.' };
+      }
+
+      const days = [];
+      let dayOffCount = 0;
+      let holidayCount = 0;
+      let leaveDaysNeeded = 0;
+
+      for (let i = 0; i < span; i++) {
+        const dStr = addDays(fromStr, i);
+        const isOff = isDayOffDate(dStr);
+        const holiday = HOLIDAYS.find(h => h.date === dStr);
+        if (isOff) dayOffCount++;
+        if (holiday) holidayCount++;
+
+        const needsLeave = !isOff && (!skipHolidays || !holiday);
+        if (needsLeave) leaveDaysNeeded++;
+
+        days.push({
+          date: dStr,
+          label: formatShortDay(dStr),
+          isOff,
+          holidayName: holiday ? holiday.name : '',
+          needsLeave
+        });
+      }
+
+      return {
+        valid: true,
+        totalDays: span,
+        dayOffCount,
+        holidayCount,
+        leaveDaysNeeded,
+        days
+      };
+    }
+
     function getAllPlBatches() {
       const day = Math.min(28, Math.max(1, Number(state.settings.plCreditDay || 1)));
       const usedByMonth = {};
@@ -660,7 +832,6 @@
         }
       });
 
-      // Fallback for legacy entries created before batch selection existed
       if (unassignedDays > 0) {
         let rem = unassignedDays;
         for (const b of batches) {
@@ -695,7 +866,6 @@
           label: `File 24–72 hrs ahead (${formatDate(addDays(leave.date, -3))} to ${formatDate(addDays(leave.date, -1))})`
         };
       }
-      // UL: at least 2 hours before shift
       const cutoff = leave.shiftTime ? `at least 2 hrs before ${leave.shiftTime} (by ${minusTwoHours(leave.shiftTime)})` : 'at least 2 hours before shift';
       return {
         deadlineDate: leave.date,
@@ -720,7 +890,6 @@
         .filter(b => b.year === activeYear && !b.isUsed && !b.isExpired)
         .sort((a, b) => a.daysToExpire - b.daysToExpire);
 
-      // Birthday Leave window: 15 days before through 15 days after birthday
       let blWindowStart = '';
       let blWindowEnd = '';
       let blDaysToExpiry = null;
@@ -742,7 +911,7 @@
 
     function switchTab(tab) {
       currentTab = tab;
-      ['dashboard', 'PL', 'UL', 'BL', 'HL', 'calendar'].forEach(t => {
+      ['dashboard', 'PL', 'UL', 'BL', 'HL', 'target', 'daysoff', 'calendar'].forEach(t => {
         const view = document.getElementById(`view-${t}`);
         const nav = document.getElementById(`nav-${t}`);
         if (t === tab) {
@@ -828,7 +997,6 @@
         `);
       }
 
-      // Unfiled upcoming leaves
       state.leaves
         .filter(l => l.filingStatus === 'planned')
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -855,8 +1023,8 @@
       const selectedYr = document.getElementById('holidayYearSelect').value;
       const yearHolidays = HOLIDAYS.filter(h => h.date.startsWith(selectedYr));
       document.getElementById('dash-holidays-list').innerHTML = yearHolidays.map(h => {
-        const earliestFile = addDays(h.date, -3); // 72 hrs before
-        const latestFile = addDays(h.date, -1);   // 24 hrs before
+        const earliestFile = addDays(h.date, -3);
+        const latestFile = addDays(h.date, -1);
         const isPast = diffDays(today, h.date) < 0;
         const alreadyLogged = state.leaves.some(l => l.type === 'HL' && l.date === h.date);
         return `
@@ -881,7 +1049,6 @@
     function renderTypeTabs() {
       const m = getMetrics();
 
-      // PL Tab Header & Monthly Schedule
       document.getElementById('tab-pl-left').textContent = m.plLeft;
       document.getElementById('tab-pl-total').textContent = m.plTotal;
 
@@ -912,7 +1079,6 @@
         `;
       }).join('');
 
-      // UL Tab Header
       document.getElementById('tab-ul-left').textContent = m.ulLeft;
       document.getElementById('tab-ul-total').textContent = m.ulTotal;
       const rate = Number(state.settings.ulDailyRate || 0);
@@ -920,17 +1086,14 @@
         ? `No expiration • Estimated cash value: ₱${(m.ulLeft * rate).toLocaleString()} (₱${rate.toLocaleString()}/day) • File ≥2 hrs before shift`
         : 'No expiration • Convertible to cash • File at least 2 hours before shift';
 
-      // BL Tab Header
       document.getElementById('tab-bl-headline').textContent = m.blLeft > 0 ? '1 Available (Not Yet Used)' : '0 Left (Already Used)';
       document.getElementById('tab-bl-expiry-info').textContent = state.settings.birthdayDate
         ? `Birthday: ${formatDate(state.settings.birthdayDate)} • Valid ${formatDate(m.blWindowStart)} to ${formatDate(m.blWindowEnd)} (±15d) • File ≥14d ahead`
         : 'Valid 15 days before to 15 days after birthday • File at least 2 weeks (14 days) ahead';
 
-      // HL Tab Header
       const hlCount = state.leaves.filter(l => l.type === 'HL').length;
       document.getElementById('tab-hl-count').textContent = hlCount;
 
-      // Render Lists for each tab
       ['PL', 'UL', 'BL', 'HL'].forEach(type => {
         const container = document.getElementById(`list-${type}`);
         const items = state.leaves
@@ -983,6 +1146,229 @@
       });
     }
 
+    // ==================== TARGET LEAVES LOGIC ====================
+    function initTargetInputsIfEmpty() {
+      const fromEl = document.getElementById('targetFrom');
+      const toEl = document.getElementById('targetTo');
+      if (!fromEl.value) {
+        fromEl.value = addDays(todayStr(), 14);
+        toEl.value = addDays(todayStr(), 18);
+      }
+      previewTargetRange();
+    }
+
+    function previewTargetRange() {
+      const fromStr = document.getElementById('targetFrom').value;
+      const toStr = document.getElementById('targetTo').value;
+      const skipHolidays = document.getElementById('targetSkipHolidays').checked;
+      const box = document.getElementById('targetLivePreview');
+
+      const res = analyzeDateRange(fromStr, toStr, skipHolidays);
+      if (!res.valid) {
+        box.innerHTML = `<p class="text-xs text-slate-500">${res.error || 'Pick a valid From and To date range to calculate leave days needed.'}</p>`;
+        return;
+      }
+
+      const pills = res.days.map(d => {
+        if (d.isOff) {
+          return `<span class="px-2 py-1 rounded-lg text-[11px] font-bold bg-teal-100 text-teal-800">${d.label} • Day Off</span>`;
+        }
+        if (skipHolidays && d.holidayName) {
+          return `<span class="px-2 py-1 rounded-lg text-[11px] font-bold bg-rose-100 text-rose-700">${d.label} • Holiday</span>`;
+        }
+        return `<span class="px-2 py-1 rounded-lg text-[11px] font-bold bg-indigo-100 text-indigo-800">${d.label} • Leave</span>`;
+      }).join('');
+
+      box.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span class="text-xs font-extrabold text-slate-900">Total Leave Needed: <span class="text-lg text-emerald-700">${res.leaveDaysNeeded}</span> day${res.leaveDaysNeeded === 1 ? '' : 's'}</span>
+            <p class="text-[11px] text-slate-500">${res.totalDays} total calendar days • ${res.dayOffCount} scheduled day${res.dayOffCount === 1 ? '' : 's'} off skipped${res.holidayCount ? ` • ${res.holidayCount} holiday${res.holidayCount === 1 ? '' : 's'}` : ''}</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1.5 pt-1">${pills}</div>
+      `;
+    }
+
+    function addTargetLeave(e) {
+      e.preventDefault();
+      const fromStr = document.getElementById('targetFrom').value;
+      const toStr = document.getElementById('targetTo').value;
+      const type = document.getElementById('targetType').value;
+      const label = document.getElementById('targetLabel').value.trim();
+      const skipHolidays = document.getElementById('targetSkipHolidays').checked;
+
+      const res = analyzeDateRange(fromStr, toStr, skipHolidays);
+      if (!res.valid) {
+        alert(res.error || 'Please enter a valid date range.');
+        return;
+      }
+
+      state.targetLeaves.unshift({
+        id: 'tgt-' + Date.now(),
+        fromDate: fromStr,
+        toDate: toStr,
+        type,
+        label,
+        skipHolidays
+      });
+      document.getElementById('targetLabel').value = '';
+      showToast('Target leave plan saved');
+      persist();
+    }
+
+    function logTargetAsLeave(targetId) {
+      const tgt = state.targetLeaves.find(t => t.id === targetId);
+      if (!tgt) return;
+      const res = analyzeDateRange(tgt.fromDate, tgt.toDate, tgt.skipHolidays);
+      const firstLeaveDay = res.days.find(d => d.needsLeave)?.date || tgt.fromDate;
+      openLeaveModal(tgt.type || 'PL', tgt.label || `Target ${formatDate(tgt.fromDate)} – ${formatDate(tgt.toDate)}`);
+      document.getElementById('leaveDate').value = firstLeaveDay;
+      document.getElementById('leaveDays').value = Math.max(0.5, res.leaveDaysNeeded || 1);
+      updateModalFilingHint();
+    }
+
+    function deleteTargetLeave(targetId) {
+      state.targetLeaves = state.targetLeaves.filter(t => t.id !== targetId);
+      showToast('Target plan removed');
+      persist();
+    }
+
+    function renderTargetLeavesTab() {
+      initTargetInputsIfEmpty();
+      const listEl = document.getElementById('savedTargetList');
+      if (!state.targetLeaves.length) {
+        listEl.innerHTML = `
+          <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-6 text-center">
+            <p class="text-sm font-bold text-slate-700">No target leave plans yet</p>
+            <p class="text-xs text-slate-400 mt-1">Use the calculator above to test future dates against your monthly Days Off.</p>
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = state.targetLeaves.map(tgt => {
+        const res = analyzeDateRange(tgt.fromDate, tgt.toDate, tgt.skipHolidays);
+        const daysNeeded = res.valid ? res.leaveDaysNeeded : 0;
+        const offSkipped = res.valid ? res.dayOffCount : 0;
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-sm font-extrabold text-slate-900">${formatDate(tgt.fromDate)} → ${formatDate(tgt.toDate)}</span>
+                  <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 text-emerald-800">${daysNeeded} Leave Day${daysNeeded === 1 ? '' : 's'} Needed</span>
+                  <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 text-slate-700">${tgt.type}</span>
+                </div>
+                ${tgt.label ? `<p class="text-xs text-slate-600 mt-1">${escapeHtml(tgt.label)}</p>` : ''}
+                <p class="text-[11px] text-slate-400 mt-0.5">${offSkipped} scheduled day${offSkipped === 1 ? '' : 's'} off excluded</p>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="logTargetAsLeave('${tgt.id}')" class="px-2.5 py-1.5 text-[11px] font-bold bg-slate-900 text-white rounded-lg">Log Leave</button>
+                <button onclick="deleteTargetLeave('${tgt.id}')" class="px-2 py-1.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 rounded-lg">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==================== MONTHLY DAYS OFF LOGIC ====================
+    function initDaysOffMonthIfEmpty() {
+      const el = document.getElementById('daysOffMonthInput');
+      if (!el.value) el.value = currentYmStr();
+    }
+
+    function getMonthDatesArray(ymStr) {
+      const [y, m] = ymStr.split('-').map(Number);
+      const count = new Date(y, m, 0).getDate();
+      const arr = [];
+      for (let d = 1; d <= count; d++) {
+        arr.push(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+      }
+      return arr;
+    }
+
+    function toggleSingleDayOff(dateStr) {
+      const ym = dateStr.slice(0, 7);
+      const current = new Set(state.daysOff[ym] || []);
+      if (current.has(dateStr)) {
+        current.delete(dateStr);
+      } else {
+        current.add(dateStr);
+      }
+      state.daysOff[ym] = Array.from(current).sort();
+      persist();
+    }
+
+    function toggleWeekdayInMonth(targetWeekday) {
+      initDaysOffMonthIfEmpty();
+      const ym = document.getElementById('daysOffMonthInput').value;
+      const dates = getMonthDatesArray(ym).filter(dStr => {
+        const [y, m, d] = dStr.split('-').map(Number);
+        return new Date(y, m - 1, d).getDay() === targetWeekday;
+      });
+      const current = new Set(state.daysOff[ym] || []);
+      const allAlreadyOff = dates.every(d => current.has(d));
+      dates.forEach(d => allAlreadyOff ? current.delete(d) : current.add(d));
+      state.daysOff[ym] = Array.from(current).sort();
+      showToast(allAlreadyOff ? 'Weekday cleared for month' : 'Weekday added as Day Off');
+      persist();
+    }
+
+    function applySatSunPreset() {
+      initDaysOffMonthIfEmpty();
+      const ym = document.getElementById('daysOffMonthInput').value;
+      const satSun = getMonthDatesArray(ym).filter(dStr => {
+        const [y, m, d] = dStr.split('-').map(Number);
+        const wd = new Date(y, m - 1, d).getDay();
+        return wd === 0 || wd === 6;
+      });
+      state.daysOff[ym] = satSun;
+      showToast('Set Saturdays & Sundays as Days Off');
+      persist();
+    }
+
+    function clearMonthDaysOff() {
+      initDaysOffMonthIfEmpty();
+      const ym = document.getElementById('daysOffMonthInput').value;
+      state.daysOff[ym] = [];
+      showToast('Cleared days off for month');
+      persist();
+    }
+
+    function renderDaysOffTab() {
+      initDaysOffMonthIfEmpty();
+      const ym = document.getElementById('daysOffMonthInput').value;
+      const [y, m] = ym.split('-').map(Number);
+      const firstDow = new Date(y, m - 1, 1).getDay();
+      const dates = getMonthDatesArray(ym);
+      const offSet = new Set(state.daysOff[ym] || []);
+
+      document.getElementById('daysOffMonthCount').textContent = `${offSet.size} day${offSet.size === 1 ? '' : 's'} off set`;
+
+      let html = '';
+      for (let i = 0; i < firstDow; i++) {
+        html += `<div class="h-11 rounded-xl bg-slate-50/50"></div>`;
+      }
+
+      dates.forEach((dStr, idx) => {
+        const isOff = offSet.has(dStr);
+        html += `
+          <button type="button" onclick="toggleSingleDayOff('${dStr}')" class="h-11 rounded-xl border text-xs font-extrabold flex flex-col items-center justify-center transition ${
+            isOff
+              ? 'bg-teal-800 text-white border-teal-900 shadow-2xs'
+              : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400'
+          }">
+            <span>${idx + 1}</span>
+            ${isOff ? `<span class="text-[9px] font-bold text-amber-300 leading-none mt-0.5">OFF</span>` : ''}
+          </button>
+        `;
+      });
+
+      document.getElementById('daysOffMonthGrid').innerHTML = html;
+    }
+
+    // ==================== CALENDAR VIEW ====================
     function renderCalendar() {
       const year = calendarDate.getFullYear();
       const month = calendarDate.getMonth();
@@ -1002,6 +1388,7 @@
         const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const dayLeaves = state.leaves.filter(l => l.date === dStr);
         const dayHoliday = HOLIDAYS.find(h => h.date === dStr);
+        const dayOff = isDayOffDate(dStr);
         const isToday = dStr === today;
         const isSelected = dStr === selectedCalendarDate;
 
@@ -1010,7 +1397,8 @@
             const c = l.type === 'PL' ? 'bg-indigo-600' : l.type === 'UL' ? 'bg-emerald-500' : l.type === 'BL' ? 'bg-amber-500' : 'bg-rose-500';
             return `<span class="w-2 h-2 rounded-full ${c}"></span>`;
           }),
-          ...(dayHoliday ? [`<span class="w-2 h-2 rounded-full bg-rose-400 ring-1 ring-rose-600"></span>`] : [])
+          ...(dayHoliday ? [`<span class="w-2 h-2 rounded-full bg-rose-400 ring-1 ring-rose-600"></span>`] : []),
+          ...(dayOff ? [`<span class="w-2 h-2 rounded-full bg-teal-700"></span>`] : [])
         ].join('');
 
         cells += `
@@ -1049,8 +1437,21 @@
       const box = document.getElementById('selectedDateDetails');
       const dayLeaves = state.leaves.filter(l => l.date === selectedCalendarDate);
       const dayHoliday = HOLIDAYS.find(h => h.date === selectedCalendarDate);
+      const dayOff = isDayOffDate(selectedCalendarDate);
 
       let html = '';
+      if (dayOff) {
+        html += `
+          <div class="p-3 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] font-extrabold uppercase text-teal-800">Scheduled Day Off</span>
+              <p class="text-xs font-bold text-slate-900">No leave filing needed on your rest day</p>
+            </div>
+            <button onclick="toggleSingleDayOff('${selectedCalendarDate}')" class="px-2.5 py-1 text-[11px] font-bold bg-white border border-teal-200 text-teal-800 rounded-lg">Remove Off</button>
+          </div>
+        `;
+      }
+
       if (dayHoliday) {
         html += `
           <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between">
@@ -1076,7 +1477,7 @@
         `;
       });
 
-      box.innerHTML = html || `<p class="text-xs text-slate-400 py-2 text-center">No leaves or holidays on this date.</p>`;
+      box.innerHTML = html || `<p class="text-xs text-slate-400 py-2 text-center">No leaves, days off, or holidays on this date.</p>`;
     }
 
     function populatePlBatchOptions(selectedBatch = '') {
@@ -1164,19 +1565,20 @@
       const date = document.getElementById('leaveDate').value || todayStr();
       const shiftTime = document.getElementById('ulShiftTime').value;
       const hint = document.getElementById('modalFilingHint');
+      const offNote = isDayOffDate(date) ? ' (Note: This date is marked as your Day Off.)' : '';
 
       if (type === 'PL') {
-        hint.textContent = `PL Rule: File at least 14 days (2 weeks) before — file by ${formatDate(addDays(date, -14))}.`;
+        hint.textContent = `PL Rule: File at least 14 days (2 weeks) before — file by ${formatDate(addDays(date, -14))}.${offNote}`;
       } else if (type === 'UL') {
-        hint.textContent = `UL Rule: File at least 2 hours before shift (by ${minusTwoHours(shiftTime)} on ${formatDate(date)}). Never expires & cash convertible.`;
+        hint.textContent = `UL Rule: File at least 2 hours before shift (by ${minusTwoHours(shiftTime)} on ${formatDate(date)}). Never expires & cash convertible.${offNote}`;
       } else if (type === 'HL') {
-        hint.textContent = `HL Rule: File between 24 to 72 hours before holiday (${formatDate(addDays(date, -3))} to ${formatDate(addDays(date, -1))}).`;
+        hint.textContent = `HL Rule: File between 24 to 72 hours before holiday (${formatDate(addDays(date, -3))} to ${formatDate(addDays(date, -1))}).${offNote}`;
       } else {
         const m = getMetrics();
         const winText = state.settings.birthdayDate
           ? `Valid window: ${formatDate(m.blWindowStart)} to ${formatDate(m.blWindowEnd)} (±15d of bday). `
           : 'Valid 15 days before to 15 days after birthday. ';
-        hint.textContent = `BL Rule: ${winText}File at least 2 weeks (14 days) ahead — file by ${formatDate(addDays(date, -14))}.`;
+        hint.textContent = `BL Rule: ${winText}File at least 2 weeks (14 days) ahead — file by ${formatDate(addDays(date, -14))}.${offNote}`;
       }
     }
 
@@ -1265,7 +1667,12 @@
         try {
           const parsed = JSON.parse(ev.target.result);
           if (parsed && parsed.settings && Array.isArray(parsed.leaves)) {
-            state = parsed;
+            state = {
+              settings: parsed.settings,
+              leaves: parsed.leaves,
+              daysOff: parsed.daysOff || {},
+              targetLeaves: Array.isArray(parsed.targetLeaves) ? parsed.targetLeaves : []
+            };
             persist();
             showToast('Backup restored');
           }
@@ -1283,6 +1690,8 @@
     function renderAll() {
       renderDashboard();
       renderTypeTabs();
+      if (currentTab === 'target') renderTargetLeavesTab();
+      if (currentTab === 'daysoff') renderDaysOffTab();
       if (currentTab === 'calendar') renderCalendar();
     }
 
