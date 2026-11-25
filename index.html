@@ -273,7 +273,7 @@
       <div class="bg-slate-900 text-white rounded-2xl p-4 shadow-sm">
         <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Future Leave Range Planner</span>
         <h2 class="text-xl font-extrabold mt-0.5">Target Leaves Calculator</h2>
-        <p class="text-xs text-slate-300 mt-1">Enter a From and To date—automatically excludes your monthly Days Off so you don't waste leave credits on rest days.</p>
+        <p class="text-xs text-slate-300 mt-1">Enter a From and To date—automatically skips your Days Off and shows the suggested day to file your leave.</p>
       </div>
 
       <form onsubmit="addTargetLeave(event)" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3.5">
@@ -763,7 +763,53 @@
       return list.includes(dateStr);
     }
 
-    function analyzeDateRange(fromStr, toStr, skipHolidays = false) {
+    function getSuggestedTargetFiling(type, firstLeaveDate) {
+      const today = todayStr();
+      if (!firstLeaveDate) {
+        return {
+          headline: 'No leave days required (all dates are Days Off)',
+          subtext: 'No leave filing needed for this range.',
+          isOverdue: false
+        };
+      }
+
+      if (type === 'PL' || type === 'BL') {
+        const suggestedDate = addDays(firstLeaveDate, -14);
+        const daysUntilFile = diffDays(today, suggestedDate);
+        const isOverdue = daysUntilFile < 0;
+        const timingNote = daysUntilFile === 0
+          ? 'File today!'
+          : daysUntilFile > 0
+            ? `in ${daysUntilFile} day${daysUntilFile === 1 ? '' : 's'}`
+            : `${Math.abs(daysUntilFile)} day${Math.abs(daysUntilFile) === 1 ? '' : 's'} past 14-day window`;
+        return {
+          headline: `Suggested Filing Date: ${formatDate(suggestedDate)}`,
+          subtext: `${type === 'PL' ? 'PL' : 'BL'} requires filing at least 14 days (2 weeks) before ${formatDate(firstLeaveDate)} (${timingNote}).`,
+          isOverdue
+        };
+      }
+
+      if (type === 'HL') {
+        const earliestDate = addDays(firstLeaveDate, -3); // 72 hrs before
+        const latestDate = addDays(firstLeaveDate, -1);   // 24 hrs before
+        const isOverdue = diffDays(today, latestDate) < 0;
+        return {
+          headline: `Suggested Filing Window: ${formatDate(earliestDate)} – ${formatDate(latestDate)}`,
+          subtext: `HL requires filing 24 to 72 hours before ${formatDate(firstLeaveDate)}.`,
+          isOverdue
+        };
+      }
+
+      // UL: at least 2 hours before shift on firstLeaveDate
+      const isOverdue = diffDays(today, firstLeaveDate) < 0;
+      return {
+        headline: `Suggested Filing Day: ${formatDate(firstLeaveDate)} (≥2 hrs before shift)`,
+        subtext: `UL requires filing at least 2 hours before your shift starts on ${formatDate(firstLeaveDate)}.`,
+        isOverdue
+      };
+    }
+
+    function analyzeDateRange(fromStr, toStr, skipHolidays = false, leaveType = 'PL') {
       if (!fromStr || !toStr || toStr < fromStr) {
         return { valid: false, totalDays: 0, dayOffCount: 0, holidayCount: 0, leaveDaysNeeded: 0, days: [] };
       }
@@ -796,12 +842,17 @@
         });
       }
 
+      const firstLeaveDate = days.find(d => d.needsLeave)?.date || null;
+      const filingAdvice = getSuggestedTargetFiling(leaveType, firstLeaveDate);
+
       return {
         valid: true,
         totalDays: span,
         dayOffCount,
         holidayCount,
         leaveDaysNeeded,
+        firstLeaveDate,
+        filingAdvice,
         days
       };
     }
@@ -1172,10 +1223,11 @@
     function previewTargetRange() {
       const fromStr = document.getElementById('targetFrom').value;
       const toStr = document.getElementById('targetTo').value;
+      const leaveType = document.getElementById('targetType').value;
       const skipHolidays = document.getElementById('targetSkipHolidays').checked;
       const box = document.getElementById('targetLivePreview');
 
-      const res = analyzeDateRange(fromStr, toStr, skipHolidays);
+      const res = analyzeDateRange(fromStr, toStr, skipHolidays, leaveType);
       if (!res.valid) {
         box.innerHTML = `<p class="text-xs text-slate-500">${res.error || 'Pick a valid From and To date range to calculate leave days needed.'}</p>`;
         return;
@@ -1191,6 +1243,11 @@
         return `<span class="px-2 py-1 rounded-lg text-[11px] font-bold bg-indigo-100 text-indigo-800">${d.label} • Leave</span>`;
       }).join('');
 
+      const advice = res.filingAdvice;
+      const adviceStyle = advice.isOverdue
+        ? 'bg-rose-50 border-rose-200 text-rose-800'
+        : 'bg-amber-50 border-amber-200 text-amber-900';
+
       box.innerHTML = `
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -1198,7 +1255,11 @@
             <p class="text-[11px] text-slate-500">${res.totalDays} total calendar days • ${res.dayOffCount} scheduled day${res.dayOffCount === 1 ? '' : 's'} off skipped${res.holidayCount ? ` • ${res.holidayCount} holiday${res.holidayCount === 1 ? '' : 's'}` : ''}</p>
           </div>
         </div>
-        <div class="flex flex-wrap gap-1.5 pt-1">${pills}</div>
+        <div class="p-2.5 rounded-xl border ${adviceStyle}">
+          <p class="text-xs font-extrabold">${advice.headline}</p>
+          <p class="text-[11px] mt-0.5 opacity-90">${advice.subtext}</p>
+        </div>
+        <div class="flex flex-wrap gap-1.5 pt-0.5">${pills}</div>
       `;
     }
 
@@ -1210,7 +1271,7 @@
       const label = document.getElementById('targetLabel').value.trim();
       const skipHolidays = document.getElementById('targetSkipHolidays').checked;
 
-      const res = analyzeDateRange(fromStr, toStr, skipHolidays);
+      const res = analyzeDateRange(fromStr, toStr, skipHolidays, type);
       if (!res.valid) {
         alert(res.error || 'Please enter a valid date range.');
         return;
@@ -1232,8 +1293,8 @@
     function logTargetAsLeave(targetId) {
       const tgt = state.targetLeaves.find(t => t.id === targetId);
       if (!tgt) return;
-      const res = analyzeDateRange(tgt.fromDate, tgt.toDate, tgt.skipHolidays);
-      const firstLeaveDay = res.days.find(d => d.needsLeave)?.date || tgt.fromDate;
+      const res = analyzeDateRange(tgt.fromDate, tgt.toDate, tgt.skipHolidays, tgt.type);
+      const firstLeaveDay = res.firstLeaveDate || tgt.fromDate;
       openLeaveModal(tgt.type || 'PL', tgt.label || `Target ${formatDate(tgt.fromDate)} – ${formatDate(tgt.toDate)}`);
       document.getElementById('leaveDate').value = firstLeaveDay;
       document.getElementById('leaveDays').value = Math.max(0.5, res.leaveDaysNeeded || 1);
@@ -1259,11 +1320,16 @@
       }
 
       listEl.innerHTML = state.targetLeaves.map(tgt => {
-        const res = analyzeDateRange(tgt.fromDate, tgt.toDate, tgt.skipHolidays);
+        const res = analyzeDateRange(tgt.fromDate, tgt.toDate, tgt.skipHolidays, tgt.type);
         const daysNeeded = res.valid ? res.leaveDaysNeeded : 0;
         const offSkipped = res.valid ? res.dayOffCount : 0;
+        const advice = res.valid ? res.filingAdvice : null;
+        const adviceBadgeStyle = advice && advice.isOverdue
+          ? 'bg-rose-50 border-rose-200 text-rose-700'
+          : 'bg-amber-50 border-amber-200 text-amber-900';
+
         return `
-          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2">
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2.5">
             <div class="flex items-start justify-between gap-2">
               <div>
                 <div class="flex flex-wrap items-center gap-1.5">
@@ -1276,9 +1342,15 @@
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
                 <button onclick="logTargetAsLeave('${tgt.id}')" class="px-2.5 py-1.5 text-[11px] font-bold bg-slate-900 text-white rounded-lg">Log Leave</button>
-                <button onclick="deleteTargetLeave('${tgt.id}')" class="px-2.5 py-1.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 rounded-lg">Delete</button>
+                <button onclick="deleteTargetLeave('${tgt.id}')" class="px-2 py-1.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 rounded-lg">Delete</button>
               </div>
             </div>
+            ${advice ? `
+              <div class="p-2.5 rounded-xl border ${adviceBadgeStyle}">
+                <p class="text-xs font-extrabold">${advice.headline}</p>
+                <p class="text-[11px] mt-0.5 opacity-90">${advice.subtext}</p>
+              </div>
+            ` : ''}
           </div>
         `;
       }).join('');
